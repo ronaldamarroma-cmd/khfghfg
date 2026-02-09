@@ -591,30 +591,37 @@ window.processAgentExcel = function(input) {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, {type: 'array'});
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+        // التعديل: قراءة الملف بناءً على ترتيب الأعمدة (A, B, C, D) لضمان العمل مع أي تسميات
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: "A"});
 
         if(jsonData.length === 0) { alert('الملف فارغ'); return; }
 
-        if(!confirm(`هل أنت متأكد من إضافة ${jsonData.length} مخول؟`)) return;
+        if(!confirm(`هل أنت متأكد من إضافة المخولين؟`)) return;
 
         const batch = writeBatch(db);
         let count = 0;
 
-        jsonData.forEach(row => {
-            // التعديل: قراءة الأعمدة بناءً على العناوين في ملف الإكسل (اسم المخول، رقم الهاتف، الدائرة او العنوان، الرمز)
-            const code = String(row['الرمز'] || row['code'] || '');
+        jsonData.forEach((row, index) => {
+            // A=الاسم, B=الهاتف, C=العنوان, D=الرمز
+            const rawName = row['A'];
+            const rawCode = row['D'];
+
+            // تخطي صف العناوين (إذا كان الصف الأول يحتوي على كلمة "الاسم" أو "اسم")
+            if (index === 0 && rawName && String(rawName).includes('اسم')) return;
+
+            const code = String(rawCode || '').trim();
             
             // تخطي إذا لم يوجد رمز أو كان مستخدم مسبقاً
             if(!code || appData.users.some(u => u.code === code)) return;
 
-            const name = row['اسم المخول'] || row['الاسم'] || row['name'];
-            const phone = row['رقم الهاتف'] || row['الهاتف'] || row['phone'] || '';
-            const address = row['الدائرة او العنوان'] || row['العنوان'] || row['address'] || '';
+            const name = rawName;
+            const phone = row['B'] || '';
+            const address = row['C'] || '';
             
-            // التعديل: إجبار النوع ليكون "صلاة جمعة" لأن الملف خاص بهم فقط
+            // إجبار النوع ليكون "صلاة جمعة"
             const agentType = 'friday_prayer';
 
-            if (!name) return; // تخطي الصفوف الفارغة
+            if (!name) return; 
 
             const docRef = doc(collection(db, "users"));
             batch.set(docRef, {
