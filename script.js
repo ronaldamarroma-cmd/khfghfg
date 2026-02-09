@@ -814,3 +814,24 @@ window.exportUsersControlData = function() {
     XLSX.utils.book_append_sheet(wb, ws, "المخولين");
     XLSX.writeFile(wb, "سجل_المخولين.xlsx");
 }
+
+// دالة حذف جميع المخولين (جديدة)
+window.deleteAllAgents = function() {
+    if(!confirm('تحذير خطير: هل أنت متأكد من حذف جميع المخولين؟ لا يمكن التراجع عن هذا الإجراء!')) return;
+    if(!confirm('تأكيد نهائي: سيتم حذف بيانات جميع المخولين وحساباتهم. هل تريد الاستمرار؟')) return;
+
+    const agents = appData.users.filter(u => u.role === 'agent');
+    if(agents.length === 0) { alert('لا يوجد مخولين لحذفهم'); return; }
+
+    const batch = writeBatch(db);
+    agents.forEach(agent => {
+        const docRef = doc(db, "users", agent.id);
+        batch.delete(docRef);
+    });
+
+    batch.commit().then(() => {
+        alert('تم حذف جميع المخولين بنجاح.');
+    }).catch(err => {
+        alert('حدث خطأ أثناء الحذف: ' + err.message);
+    });
+}
