@@ -581,7 +581,7 @@ window.saveAgentProcess = function() {
     }
 }
 
-// دالة معالجة ملف الإكسل لإضافة المخولين
+// دالة معالجة ملف الإكسل (لصلاة الجمعة)
 window.processAgentExcel = function(input) {
     const file = input.files[0];
     if(!file) return;
@@ -591,12 +591,11 @@ window.processAgentExcel = function(input) {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, {type: 'array'});
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        // التعديل: قراءة الملف بناءً على ترتيب الأعمدة (A, B, C, D) لضمان العمل مع أي تسميات
         const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: "A"});
 
         if(jsonData.length === 0) { alert('الملف فارغ'); return; }
 
-        if(!confirm(`هل أنت متأكد من إضافة المخولين؟`)) return;
+        if(!confirm(`هل أنت متأكد من إضافة مخولي صلاة الجمعة؟`)) return;
 
         const batch = writeBatch(db);
         let count = 0;
@@ -606,12 +605,9 @@ window.processAgentExcel = function(input) {
             const rawName = row['A'];
             const rawCode = row['D'];
 
-            // تخطي صف العناوين (إذا كان الصف الأول يحتوي على كلمة "الاسم" أو "اسم")
             if (index === 0 && rawName && String(rawName).includes('اسم')) return;
 
             const code = String(rawCode || '').trim();
-            
-            // تخطي إذا لم يوجد رمز أو كان مستخدم مسبقاً
             if(!code || appData.users.some(u => u.code === code)) return;
 
             const name = rawName;
@@ -639,8 +635,69 @@ window.processAgentExcel = function(input) {
         });
 
         batch.commit().then(() => {
-            alert(`تم إضافة ${count} مخول بنجاح`);
-            input.value = ''; // تصفير الملف
+            alert(`تم إضافة ${count} مخول صلاة جمعة بنجاح`);
+            input.value = ''; 
+        }).catch(err => alert('حدث خطأ: ' + err.message));
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// دالة معالجة ملف الإكسل (للمخولين العاديين) - جديدة
+window.processNormalAgentExcel = function(input) {
+    const file = input.files[0];
+    if(!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: "A"});
+
+        if(jsonData.length === 0) { alert('الملف فارغ'); return; }
+
+        if(!confirm(`هل أنت متأكد من إضافة مخولين عاديين؟`)) return;
+
+        const batch = writeBatch(db);
+        let count = 0;
+
+        jsonData.forEach((row, index) => {
+            // A=الاسم, B=الهاتف, C=العنوان, D=الرمز (نفس النظام)
+            const rawName = row['A'];
+            const rawCode = row['D'];
+
+            if (index === 0 && rawName && String(rawName).includes('اسم')) return;
+
+            const code = String(rawCode || '').trim();
+            if(!code || appData.users.some(u => u.code === code)) return;
+
+            const name = rawName;
+            const phone = row['B'] || '';
+            const address = row['C'] || '';
+            
+            // إجبار النوع ليكون "عادي"
+            const agentType = 'normal';
+
+            if (!name) return; 
+
+            const docRef = doc(collection(db, "users"));
+            batch.set(docRef, {
+                name: name,
+                phone: phone,
+                address: address,
+                code: code,
+                agentType: agentType,
+                role: 'agent',
+                booksCount: 0,
+                locked: false,
+                timestamp: Date.now()
+            });
+            count++;
+        });
+
+        batch.commit().then(() => {
+            alert(`تم إضافة ${count} مخول عادي بنجاح`);
+            input.value = ''; 
         }).catch(err => alert('حدث خطأ: ' + err.message));
     };
     reader.readAsArrayBuffer(file);
