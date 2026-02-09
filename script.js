@@ -533,7 +533,7 @@ window.prepareEditAgent = function(docId) {
     // تعيين النوع
     document.getElementById('new-agent-type').value = user.agentType || 'normal';
     
-    document.getElementById('agent-modal-title').innerText = "تعديل بيانات المخول";
+    document.getElementById('agent-modal-title').innerText = "تعديل بيانات المخولين";
     window.toggleAgentModal();
 }
 
@@ -732,4 +732,28 @@ window.exportAllData = function() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "AllData");
     XLSX.writeFile(wb, "AllData.xlsx");
+}
+
+window.exportUsersControlData = function() {
+    const agents = appData.users.filter(u => u.role === 'agent');
+    if(agents.length === 0) { alert('لا توجد بيانات'); return; }
+
+    const data = agents.map(u => {
+         const typeLabel = u.agentType === 'friday_prayer' ? 'صلاة جمعة' : 'مخول عادي';
+         const statusLabel = u.locked ? 'مقفول' : 'نشط';
+         return {
+             "اسم المخول": u.name,
+             "رقم الهاتف": u.phone,
+             "نوع المخول": typeLabel,
+             "عدد الدفاتر": u.booksCount || 0,
+             "العنوان/الدائرة": u.address,
+             "الرمز": u.code,
+             "الحالة": statusLabel
+         };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "المخولين");
+    XLSX.writeFile(wb, "سجل_المخولين.xlsx");
 }
