@@ -601,18 +601,30 @@ window.processAgentExcel = function(input) {
         let count = 0;
 
         jsonData.forEach(row => {
-            // المتوقع في الإكسل: الاسم, الهاتف, العنوان, الرمز, النوع
-            // النوع في الإكسل يفضل أن يكون: "normal" أو "friday_prayer"
-            const code = String(row['الرمز'] || row['code']);
-            if(appData.users.some(u => u.code === code)) return; // تخطي المكرر
+            // التعديل: مطابقة الأعمدة حسب الملف (اسم المخول، رقم الهاتف، الدائرة او العنوان، الرمز)
+            const code = String(row['الرمز'] || row['code'] || row['رمز'] || '');
+            
+            // تخطي إذا لم يوجد رمز أو كان مستخدم مسبقاً
+            if(!code || appData.users.some(u => u.code === code)) return;
+
+            const name = row['اسم المخول'] || row['الاسم'] || row['name'];
+            const phone = row['رقم الهاتف'] || row['الهاتف'] || row['phone'] || '';
+            const address = row['الدائرة او العنوان'] || row['العنوان'] || row['address'] || '';
+            
+            // التعديل: تعيين النوع "friday_prayer" تلقائياً لهذا الملف (إلا إذا تم تحديد غير ذلك)
+            // بما أن هذا الملف خاص بصلاة الجمعة ولا يحتوي على عمود النوع، سنجعله الافتراضي
+            let agentType = 'friday_prayer'; 
+            if (row['النوع'] === 'normal') agentType = 'normal';
+
+            if (!name) return; // تخطي الصفوف الفارغة من الأسماء
 
             const docRef = doc(collection(db, "users"));
             batch.set(docRef, {
-                name: row['الاسم'] || row['name'],
-                phone: row['الهاتف'] || row['phone'] || '',
-                address: row['العنوان'] || row['address'] || '',
+                name: name,
+                phone: phone,
+                address: address,
                 code: code,
-                agentType: row['النوع'] || row['type'] === 'صلاة جمعة' ? 'friday_prayer' : 'normal',
+                agentType: agentType,
                 role: 'agent',
                 booksCount: 0,
                 locked: false,
