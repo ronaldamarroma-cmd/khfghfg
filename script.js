@@ -601,8 +601,8 @@ window.processAgentExcel = function(input) {
         let count = 0;
 
         jsonData.forEach(row => {
-            // التعديل: مطابقة الأعمدة حسب الملف (اسم المخول، رقم الهاتف، الدائرة او العنوان، الرمز)
-            const code = String(row['الرمز'] || row['code'] || row['رمز'] || '');
+            // التعديل: قراءة الأعمدة بناءً على العناوين في ملف الإكسل (اسم المخول، رقم الهاتف، الدائرة او العنوان، الرمز)
+            const code = String(row['الرمز'] || row['code'] || '');
             
             // تخطي إذا لم يوجد رمز أو كان مستخدم مسبقاً
             if(!code || appData.users.some(u => u.code === code)) return;
@@ -611,12 +611,10 @@ window.processAgentExcel = function(input) {
             const phone = row['رقم الهاتف'] || row['الهاتف'] || row['phone'] || '';
             const address = row['الدائرة او العنوان'] || row['العنوان'] || row['address'] || '';
             
-            // التعديل: تعيين النوع "friday_prayer" تلقائياً لهذا الملف (إلا إذا تم تحديد غير ذلك)
-            // بما أن هذا الملف خاص بصلاة الجمعة ولا يحتوي على عمود النوع، سنجعله الافتراضي
-            let agentType = 'friday_prayer'; 
-            if (row['النوع'] === 'normal') agentType = 'normal';
+            // التعديل: إجبار النوع ليكون "صلاة جمعة" لأن الملف خاص بهم فقط
+            const agentType = 'friday_prayer';
 
-            if (!name) return; // تخطي الصفوف الفارغة من الأسماء
+            if (!name) return; // تخطي الصفوف الفارغة
 
             const docRef = doc(collection(db, "users"));
             batch.set(docRef, {
